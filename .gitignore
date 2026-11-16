@@ -1,3 +1,8 @@
 CLAUDE.md
+SUBJECT.md
 *.pdf
 *.iso
+
+# Credentials: never commit
+secrets/
+srcs/.env
