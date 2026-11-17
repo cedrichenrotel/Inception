@@ -96,8 +96,10 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 
 ## Phase 3 — Variables d'environnement et secrets
 
-- [ ] `srcs/.env` : `DOMAIN_NAME`, `MYSQL_DATABASE`, `MYSQL_USER`, noms des utilisateurs WP, emails…
-- [ ] `secrets/*.txt` : mots de passe (BDD, root BDD, utilisateurs WordPress)
+- [x] `srcs/.env` : `DOMAIN_NAME`, `MYSQL_DATABASE`, `MYSQL_USER`, noms des utilisateurs WP, emails…
+- [x] `secrets/*.txt` : mots de passe (BDD, root BDD, utilisateurs WordPress)
+      → créés **dans la VM uniquement** (`chmod 600`). `credentials.txt` = `WP_ADMIN_PASSWORD=...` / `WP_USER_PASSWORD=...`
+- [ ] Mettre 2 mots de passe WordPress **différents** dans `credentials.txt`
 - [ ] Déclarer les secrets dans `docker-compose.yml` (`secrets:`), ils seront lus dans `/run/secrets/...`
 - [ ] Vérifier : **aucun mot de passe dans les Dockerfiles ni dans git**
 
@@ -223,3 +225,4 @@ Je dois savoir expliquer **chaque ligne** et être capable de faire une petite m
 | 16/11 | moi | Reprise du projet, VM relancée, SSH OK, création de ce plan |
 | 16/11 | moi | Clé SSH configurée, inventaire de la VM (Docker OK, brouillon du collègue inutilisable) |
 | 16/11 | moi | Brouillon du collègue supprimé, arborescence Phase 2 créée, secrets ignorés par git |
+| 16/11 | moi | Phase 3 : `.env` et secrets créés dans la VM |
