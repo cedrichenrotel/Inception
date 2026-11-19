@@ -7,3 +7,5 @@ RUN apt update && apt install openssl nginx -y && \
     -subj "/CN=cehenrot.42.fr"
 
 COPY conf/nginx.conf /etc/nginx/conf.d/
+
+CMD ["nginx", "-g", "daemon off;"]
