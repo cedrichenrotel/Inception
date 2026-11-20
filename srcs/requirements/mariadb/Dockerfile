@@ -9,9 +9,14 @@ RUN apt-get update && \
 COPY conf/50-server.cnf \
     /etc/mysql/mariadb.conf.d/50-server.cnf
 
+COPY tools/init.sh /usr/local/bin/
+
 EXPOSE 3306
 
 HEALTHCHECK --start-period=5m \
-  CMD mariadb -e 'SELECT @@datadir;' || exit 1
+  CMD mariadb-admin ping --silent || exit 1
 
-CMD ["mariadbd", "--user=mysql"]
+
+RUN chmod +x /usr/local/bin/init.sh
+
+CMD ["init.sh"]
