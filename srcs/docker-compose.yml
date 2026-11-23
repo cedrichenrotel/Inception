@@ -1,21 +1,33 @@
 services:
   nginx:
     build: ./requirements/nginx
+    image: nginx
+    pull_policy: build
     container_name: nginx
+    volumes:
+      - volume_wordpress:/var/www/html
     networks:
       - inception
   wordpress:
     build: ./requirements/wordpress
+    image: wordpress
+    pull_policy: build
     container_name: wordpress
+    volumes:
+      - volume_wordpress:/var/www/html
     networks:
       - inception
   mariadb:
     build: ./requirements/mariadb
+    image: mariadb
+    pull_policy: build
     container_name: mariadb
-    .env_file: .env 
+    env_file: .env
     secrets:
       - db_password
       - db_root_password
+    volumes:
+      - volume_mariadb:/var/lib/mysql
     networks:
       - inception
 
@@ -25,8 +37,22 @@ networks:
 
 secrets:
   db_password:
-    file: ../db_password.txt
+    file: ../secrets/db_password.txt
   db_root_password:
-    file: ../db_root_password.txt
+    file: ../secrets/db_root_password.txt
   credentials:
-    file: ..credentials.txt
+    file: ../secrets/credentials.txt
+
+volumes:
+  volume_wordpress:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/henrotel/data/wordpress
+  volume_mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/henrotel/data/mariadb

@@ -5,7 +5,16 @@
 
 ---
 
-## 📍 État actuel (16/11/2026)
+## 📍 État actuel (23/11/2026)
+
+**Où on en est :** les 3 conteneurs démarrent ensemble avec `docker compose -f srcs/docker-compose.yml up --build`
+(mariadb `healthy`). Il manque : volumes, port 443, `depends_on`, `restart`, la fin de `setup.sh`
+(installation WordPress) et le lien nginx → php-fpm. 👉 **Prochaine étape : les volumes (Phase 7).**
+
+- Travail aussi sur l'**ordi perso** (Ubuntu 25.10, sans VM) : `docker.io` + `docker-compose-v2` installés.
+  `srcs/.env` et `secrets/` y ont été recréés (ignorés par git, donc à recréer sur chaque machine).
+
+### Historique (16/11/2026)
 
 - [x] VM VirtualBox `inception` créée (Ubuntu 26.04, 2 Go RAM, 1 CPU)
 - [x] SSH vers la VM fonctionnel : `ssh -p 4242 cehenrot@localhost`
@@ -100,7 +109,8 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 - [x] `secrets/*.txt` : mots de passe (BDD, root BDD, utilisateurs WordPress)
       → créés **dans la VM uniquement** (`chmod 600`). `credentials.txt` = `WP_ADMIN_PASSWORD=...` / `WP_USER_PASSWORD=...`
 - [ ] Mettre 2 mots de passe WordPress **différents** dans `credentials.txt`
-- [ ] Déclarer les secrets dans `docker-compose.yml` (`secrets:`), ils seront lus dans `/run/secrets/...`
+- [x] Déclarer les secrets dans `docker-compose.yml` (`secrets:`), ils seront lus dans `/run/secrets/...`
+      → fait pour mariadb (`db_password`, `db_root_password`). `credentials` déclaré mais pas encore utilisé (WordPress).
 - [ ] Vérifier : **aucun mot de passe dans les Dockerfiles ni dans git**
 
 **À comprendre :** différence entre secrets et variables d'environnement.
@@ -109,43 +119,47 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 
 ## Phase 4 — MariaDB (à faire en premier, les autres en dépendent)
 
-- [ ] Dockerfile : base Debian/Alpine + installation de `mariadb-server`
-- [ ] Config : écouter sur `0.0.0.0:3306` (pas seulement localhost)
-- [ ] Script d'init (`tools/`) : créer la base, l'utilisateur, le mot de passe root (lus depuis les secrets)
-- [ ] Le script finit par `exec mysqld ...` → le serveur devient le **PID 1** (pas de `tail -f`, pas de `sleep`)
-- [ ] Test : `docker exec -it mariadb mariadb -u <user> -p` puis `SHOW DATABASES;`
+- [x] Dockerfile : base Debian/Alpine + installation de `mariadb-server`
+- [x] Config : écouter sur `0.0.0.0:3306` (pas seulement localhost)
+- [x] Script d'init (`tools/init.sh`) : créer la base, l'utilisateur, le mot de passe root (lus depuis les secrets)
+- [x] Le script finit par `exec mariadbd --user=mysql` → le serveur devient le **PID 1** (pas de `tail -f`, pas de `sleep`)
+- [x] Test : `docker exec -it mariadb mariadb -u <user> -p` puis `SHOW DATABASES;`
+- [x] `HEALTHCHECK` avec `mariadb-admin ping --silent` (le « Access denied root » dans les logs est normal)
+- [ ] ⚠️ À vérifier avec les volumes : dossier `/var/lib/mysql` vide au 1er lancement → il faudra peut-être `mariadb-install-db`
 
 ---
 
 ## Phase 5 — WordPress + php-fpm (sans nginx)
 
-- [ ] Dockerfile : `php-fpm` + extensions (`php-mysql`…) + `wp-cli`
-- [ ] Config php-fpm : écouter sur le port `9000` (et non sur un socket)
-- [ ] Script d'init : télécharger WordPress, `wp config create`, `wp core install`
+- [x] Dockerfile : `php-fpm` + extensions (`php-mysql`…) + `wp-cli`
+- [x] Config php-fpm (`conf/www.conf`) : écouter sur le port `9000` (et non sur un socket)
+- [ ] Script d'init (`tools/setup.sh`) : ~~télécharger WordPress~~ ✅, `wp config create`, `wp core install`
 - [ ] Créer **2 utilisateurs** : un administrateur (**son nom ne doit PAS contenir « admin »**) + un utilisateur normal
 - [ ] Attendre que MariaDB soit prête avant l'installation
-- [ ] Finir par `exec php-fpm -F` (au premier plan, PID 1)
+- [ ] Donner les fichiers à `www-data` (`chown -R www-data:www-data /var/www/html`)
+- [x] Finir par `exec php-fpm8.2 -F` (au premier plan, PID 1)
 
 ---
 
 ## Phase 6 — NGINX (seule porte d'entrée)
 
-- [ ] Dockerfile : nginx + openssl
-- [ ] Générer un certificat auto-signé (pour `cehenrot.42.fr`)
-- [ ] Config : `listen 443 ssl;` et `ssl_protocols TLSv1.2 TLSv1.3;` **uniquement**
-- [ ] Transmettre le PHP à `wordpress:9000` (`fastcgi_pass`)
+- [x] Dockerfile : nginx + openssl
+- [x] Générer un certificat auto-signé (pour `cehenrot.42.fr`)
+- [x] Config (`conf/default.conf`) : `listen 443 ssl;` et `ssl_protocols TLSv1.2 TLSv1.3;` **uniquement**
+- [x] Test seul : `curl -k https://localhost` OK, TLS 1.1 refusé (`openssl s_client -tls1_1`)
+- [ ] Transmettre le PHP à `wordpress:9000` (`location ~ \.php$` + `fastcgi_pass`), `index index.php`
 - [ ] Monter le volume des fichiers WordPress (pour servir les fichiers statiques)
-- [ ] `nginx -g 'daemon off;'` (au premier plan)
+- [x] `nginx -g 'daemon off;'` (au premier plan)
 - [ ] Aucun port 80 exposé, **uniquement le 443**
 
 ---
 
 ## Phase 7 — docker-compose.yml
 
-- [ ] 3 services : `mariadb`, `wordpress`, `nginx`, avec `build:` (pas d'images téléchargées)
-- [ ] `image:` = même nom que le service
+- [x] 3 services : `mariadb`, `wordpress`, `nginx`, avec `build:` (pas d'images téléchargées)
+- [x] `image:` = même nom que le service, **+ `pull_policy: build`** (sinon compose télécharge l'image officielle !)
 - [ ] `restart: always` (ou `unless-stopped`) sur chaque service
-- [ ] Un réseau personnalisé (`networks:`) : **interdit** `network: host`, `links:`, `--link`
+- [x] Un réseau personnalisé (`networks: inception`, driver `bridge`) : **interdit** `network: host`, `links:`, `--link`
 - [ ] 2 **volumes nommés** (pas de bind mounts) dont les données vont dans `/home/cehenrot/data/...` :
   ```yaml
   volumes:
@@ -153,7 +167,7 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
       driver: local
       driver_opts: { type: none, o: bind, device: /home/cehenrot/data/mariadb }
   ```
-- [ ] `env_file: .env` et `secrets:`
+- [x] `env_file: .env` et `secrets:` (mariadb) — [ ] à ajouter aussi pour wordpress
 - [ ] `depends_on` : wordpress → mariadb, nginx → wordpress
 - [ ] Seul nginx publie un port : `443:443`
 
@@ -226,3 +240,6 @@ Je dois savoir expliquer **chaque ligne** et être capable de faire une petite m
 | 16/11 | moi | Clé SSH configurée, inventaire de la VM (Docker OK, brouillon du collègue inutilisable) |
 | 16/11 | moi | Brouillon du collègue supprimé, arborescence Phase 2 créée, secrets ignorés par git |
 | 16/11 | moi | Phase 3 : `.env` et secrets créés dans la VM |
+| 19/11 | moi | nginx (TLS, certificat, conf, CMD), WordPress (php-fpm 9000, wp-cli, setup.sh), MariaDB (init.sh) |
+| 20/11 | moi | MariaDB testée seule (healthcheck corrigé), début docker-compose (services + réseau) |
+| 23/11 | moi | Compose : secrets, `.env`, `image` + `pull_policy: build` → les 3 conteneurs démarrent ensemble |
