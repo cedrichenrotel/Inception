@@ -12,9 +12,21 @@ services:
   mariadb:
     build: ./requirements/mariadb
     container_name: mariadb
+    .env_file: .env 
+    secrets:
+      - db_password
+      - db_root_password
     networks:
       - inception
 
 networks:
   inception:
     driver: bridge
+
+secrets:
+  db_password:
+    file: ../db_password.txt
+  db_root_password:
+    file: ../db_root_password.txt
+  credentials:
+    file: ..credentials.txt
