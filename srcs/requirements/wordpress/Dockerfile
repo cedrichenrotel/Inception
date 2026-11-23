@@ -1,6 +1,6 @@
 FROM debian:bookworm
 
-RUN apt update && apt install php-fpm php-mysql curl -y
+RUN apt-get update && apt-get upgrade -y && apt install php-fpm php-mysql curl -y
 
 RUN curl -o /usr/local/bin/wp \
     https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \

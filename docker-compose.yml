@@ -1,19 +1,16 @@
 services:
   nginx:
     build: ./requirements/nginx
-    image: nginx
     container_name: nginx
     networks:
       - inception
   wordpress:
     build: ./requirements/wordpress
-    image: wordpress
     container_name: wordpress
     networks:
       - inception
   mariadb:
     build: ./requirements/mariadb
-    image: mariadb
     container_name: mariadb
     networks:
       - inception
