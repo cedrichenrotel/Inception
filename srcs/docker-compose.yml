@@ -8,6 +8,11 @@ services:
       - volume_wordpress:/var/www/html
     networks:
       - inception
+    ports:
+      - "443:443"
+    depends_on:
+      - wordpress
+    restart: unless-stopped
   wordpress:
     build: ./requirements/wordpress
     image: wordpress
@@ -17,6 +22,13 @@ services:
       - volume_wordpress:/var/www/html
     networks:
       - inception
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+    env_file: .env
+    secrets:
+      - db_password
+      - credentials
   mariadb:
     build: ./requirements/mariadb
     image: mariadb
@@ -30,6 +42,7 @@ services:
       - volume_mariadb:/var/lib/mysql
     networks:
       - inception
+    restart: unless-stopped
 
 networks:
   inception:

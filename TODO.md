@@ -7,9 +7,12 @@
 
 ## 📍 État actuel (23/11/2026)
 
-**Où on en est :** les 3 conteneurs démarrent ensemble avec `docker compose -f srcs/docker-compose.yml up --build`
-(mariadb `healthy`). Il manque : volumes, port 443, `depends_on`, `restart`, la fin de `setup.sh`
-(installation WordPress) et le lien nginx → php-fpm. 👉 **Prochaine étape : les volumes (Phase 7).**
+**Où on en est (24/11) :** 🎉 **le site WordPress s'affiche sur `https://cehenrot.42.fr`** (ordi perso).
+Les 3 conteneurs, volumes, port 443, `depends_on`, `restart`, installation auto de WordPress et lien nginx → php-fpm
+sont faits. 👉 **Prochaine étape : le Makefile (Phase 8)**, puis tests finaux et documentation.
+
+- Avant chaque `up` : `mkdir -p ~/data/mariadb ~/data/wordpress` (le dossier doit exister, à mettre dans le Makefile).
+- Message `WordPress files seem to already be present` au démarrage = normal tant que `setup.sh` ne crée pas `wp-config.php`.
 
 - Travail aussi sur l'**ordi perso** (Ubuntu 25.10, sans VM) : `docker.io` + `docker-compose-v2` installés.
   `srcs/.env` et `secrets/` y ont été recréés (ignorés par git, donc à recréer sur chaque machine).
@@ -68,7 +71,7 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 - [x] Installer `make` et `git`
 - [x] Cloner le dépôt dans la VM
 - [ ] Nettoyer les restes de tests : `docker rm mon-conteneur && docker rmi test:latest`
-- [ ] Domaine : ajouter `127.0.0.1 cehenrot.42.fr` dans `/etc/hosts`
+- [ ] Domaine : ajouter `127.0.0.1 cehenrot.42.fr` dans `/etc/hosts` (✅ fait sur l'ordi perso, à faire dans la VM)
 - [ ] Créer les dossiers des volumes : `/home/cehenrot/data/mariadb` et `/home/cehenrot/data/wordpress`
 - [ ] (Optionnel) Redirection de port VirtualBox 443 → 443 pour tester depuis le PC
 - [ ] 💡 Faire un **snapshot** de la VM une fois prête (il n'y en a aucun pour l'instant)
@@ -125,7 +128,7 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 - [x] Le script finit par `exec mariadbd --user=mysql` → le serveur devient le **PID 1** (pas de `tail -f`, pas de `sleep`)
 - [x] Test : `docker exec -it mariadb mariadb -u <user> -p` puis `SHOW DATABASES;`
 - [x] `HEALTHCHECK` avec `mariadb-admin ping --silent` (le « Access denied root » dans les logs est normal)
-- [ ] ⚠️ À vérifier avec les volumes : dossier `/var/lib/mysql` vide au 1er lancement → il faudra peut-être `mariadb-install-db`
+- [x] Volume vide au 1er lancement : pas de souci, Docker y copie le contenu de `/var/lib/mysql` de l'image
 
 ---
 
@@ -133,10 +136,10 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 
 - [x] Dockerfile : `php-fpm` + extensions (`php-mysql`…) + `wp-cli`
 - [x] Config php-fpm (`conf/www.conf`) : écouter sur le port `9000` (et non sur un socket)
-- [ ] Script d'init (`tools/setup.sh`) : ~~télécharger WordPress~~ ✅, `wp config create`, `wp core install`
-- [ ] Créer **2 utilisateurs** : un administrateur (**son nom ne doit PAS contenir « admin »**) + un utilisateur normal
-- [ ] Attendre que MariaDB soit prête avant l'installation
-- [ ] Donner les fichiers à `www-data` (`chown -R www-data:www-data /var/www/html`)
+- [x] Script d'init (`tools/setup.sh`) : télécharger WordPress, `wp config create` (boucle `until` = attente MariaDB), `wp core install --url=https://...`
+- [x] Créer **2 utilisateurs** : un administrateur (**son nom ne doit PAS contenir « admin »**) + un utilisateur normal
+- [x] Attendre que MariaDB soit prête avant l'installation
+- [x] Donner les fichiers à `www-data` (`chown -R www-data:www-data /var/www/html`)
 - [x] Finir par `exec php-fpm8.2 -F` (au premier plan, PID 1)
 
 ---
@@ -147,10 +150,10 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 - [x] Générer un certificat auto-signé (pour `cehenrot.42.fr`)
 - [x] Config (`conf/default.conf`) : `listen 443 ssl;` et `ssl_protocols TLSv1.2 TLSv1.3;` **uniquement**
 - [x] Test seul : `curl -k https://localhost` OK, TLS 1.1 refusé (`openssl s_client -tls1_1`)
-- [ ] Transmettre le PHP à `wordpress:9000` (`location ~ \.php$` + `fastcgi_pass`), `index index.php`
-- [ ] Monter le volume des fichiers WordPress (pour servir les fichiers statiques)
+- [x] Transmettre le PHP à `wordpress:9000` (`location ~ \.php$` + `fastcgi_pass`), `index index.php`
+- [x] Monter le volume des fichiers WordPress (pour servir les fichiers statiques)
 - [x] `nginx -g 'daemon off;'` (au premier plan)
-- [ ] Aucun port 80 exposé, **uniquement le 443**
+- [x] Aucun port 80 exposé, **uniquement le 443**
 
 ---
 
@@ -158,18 +161,14 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 
 - [x] 3 services : `mariadb`, `wordpress`, `nginx`, avec `build:` (pas d'images téléchargées)
 - [x] `image:` = même nom que le service, **+ `pull_policy: build`** (sinon compose télécharge l'image officielle !)
-- [ ] `restart: always` (ou `unless-stopped`) sur chaque service
+- [x] `restart: unless-stopped` sur chaque service (testé : `docker exec nginx nginx -s stop` → relancé)
 - [x] Un réseau personnalisé (`networks: inception`, driver `bridge`) : **interdit** `network: host`, `links:`, `--link`
-- [ ] 2 **volumes nommés** (pas de bind mounts) dont les données vont dans `/home/cehenrot/data/...` :
-  ```yaml
-  volumes:
-    mariadb:
-      driver: local
-      driver_opts: { type: none, o: bind, device: /home/cehenrot/data/mariadb }
-  ```
-- [x] `env_file: .env` et `secrets:` (mariadb) — [ ] à ajouter aussi pour wordpress
-- [ ] `depends_on` : wordpress → mariadb, nginx → wordpress
-- [ ] Seul nginx publie un port : `443:443`
+- [x] 2 **volumes nommés** (`volume_mariadb`, `volume_wordpress`) dont les données vont dans `~/data/...`
+      (`driver: local` + `driver_opts` `type: none`, `o: bind`, `device: ...`). Wordpress partagé avec nginx.
+- [ ] ⚠️ `device:` est en dur `/home/henrotel/...` → à l'école mettre `/home/cehenrot/...` (ou `${HOME}/data/...`)
+- [x] `env_file: .env` et `secrets:` (mariadb + wordpress : `db_password`, `credentials`)
+- [x] `depends_on` : wordpress → mariadb, nginx → wordpress
+- [x] Seul nginx publie un port : `443:443`
 
 ---
 
@@ -243,3 +242,5 @@ Je dois savoir expliquer **chaque ligne** et être capable de faire une petite m
 | 19/11 | moi | nginx (TLS, certificat, conf, CMD), WordPress (php-fpm 9000, wp-cli, setup.sh), MariaDB (init.sh) |
 | 20/11 | moi | MariaDB testée seule (healthcheck corrigé), début docker-compose (services + réseau) |
 | 23/11 | moi | Compose : secrets, `.env`, `image` + `pull_policy: build` → les 3 conteneurs démarrent ensemble |
+| 23/11 | moi | Volumes nommés dans `~/data` : persistance vérifiée (base et fichiers WP survivent à un `down`) |
+| 24/11 | moi | ports/depends_on/restart, setup.sh complet (2 comptes), fastcgi nginx, /etc/hosts → **site WordPress affiché** 🎉 |
