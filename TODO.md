@@ -5,17 +5,31 @@
 
 ---
 
-## 📍 État actuel (23/11/2026)
+## 📍 État actuel (26/11/2026)
 
-**Où on en est (24/11) :** 🎉 **le site WordPress s'affiche sur `https://cehenrot.42.fr`** (ordi perso).
-Les 3 conteneurs, volumes, port 443, `depends_on`, `restart`, installation auto de WordPress et lien nginx → php-fpm
-sont faits. 👉 **Prochaine étape : le Makefile (Phase 8)**, puis tests finaux et documentation.
+**Où on en est :** 🎉 **toute la stack tourne dans la VM** : WordPress sur `https://cehenrot.42.fr` (TLSv1.3),
+site statique sur `:8080`, Adminer sur `:8081`. Makefile et 2 bonus faits.
 
-- Avant chaque `up` : `mkdir -p ~/data/mariadb ~/data/wordpress` (le dossier doit exister, à mettre dans le Makefile).
-- Message `WordPress files seem to already be present` au démarrage = normal tant que `setup.sh` ne crée pas `wp-config.php`.
+### 🔜 Reste à faire (dans l'ordre)
 
-- Travail aussi sur l'**ordi perso** (Ubuntu 25.10, sans VM) : `docker.io` + `docker-compose-v2` installés.
-  `srcs/.env` et `secrets/` y ont été recréés (ignorés par git, donc à recréer sur chaque machine).
+1. 🐞 **Bug utilisateurs WordPress** (bloquant, voir Phase 5) → corriger, push, `git pull` dans la VM, `make re`
+2. **Tests finaux** (Phase 9)
+3. **Documentation** (Phase 10) : README en anglais, `USER_DOC.md`, `DEV_DOC.md`
+4. Petits nettoyages : Adminer `latest.php` → version précise, site par défaut nginx (port 80), healthcheck MariaDB
+5. Commiter ou annuler la modif de `nginx/conf/default.conf` (juste un espace dans `server_name`)
+6. Bonus restants (Redis, FTP, service au choix) + préparer la soutenance
+
+**Adresses (Firefox, DANS la VM, pas sur le PC de 42) :**
+
+| Service | Adresse |
+|---|---|
+| WordPress | `https://cehenrot.42.fr` (sans `www.`) |
+| Admin WordPress | `https://cehenrot.42.fr/wp-admin` |
+| Site statique (bonus) | `http://cehenrot.42.fr:8080` |
+| Adminer (bonus) | `http://cehenrot.42.fr:8081` → serveur `mariadb`, user `wpuser`, base `wordpress` |
+
+**Workflow :** je code sur le PC → `git push` → dans la VM `git pull` → `make re`.
+`srcs/.env` et `secrets/` sont ignorés par git : à recopier à la main sur chaque machine.
 
 ### Historique (16/11/2026)
 
@@ -65,14 +79,17 @@ find ~ \( -name docker-compose.yml -o -name Makefile -o -name Dockerfile \) 2>/d
 
 ## Phase 1 — Préparer la VM
 
-- [x] Installer Docker Engine + plugin `docker compose` (dépôt officiel Docker)
-- [x] Ajouter l'utilisateur au groupe docker : `sudo usermod -aG docker cehenrot` (puis se reconnecter)
-- [ ] Vérifier : `docker run --rm hello-world` (test uniquement, ne fait pas partie du projet)
-- [x] Installer `make` et `git`
+> 26/11 : VM **réinstallée** (`cedric-virtualbox`), tout a été refait dessus.
+
+- [x] Installer Docker : `docker.io` + **`docker-compose-v2` + `docker-buildx`**
+      (sans le plugin compose → erreur `unknown shorthand flag: 'f'`)
+- [x] Groupe docker : `sudo usermod -aG docker cehenrot` → **se déconnecter/reconnecter**
+      (sinon `permission denied` sur `docker.sock`)
+- [x] Installer `make` et `git` (⚠️ `sudo` devant **chaque** commande d'une ligne avec `&&`)
 - [x] Cloner le dépôt dans la VM
-- [ ] Nettoyer les restes de tests : `docker rm mon-conteneur && docker rmi test:latest`
-- [ ] Domaine : ajouter `127.0.0.1 cehenrot.42.fr` dans `/etc/hosts` (✅ fait sur l'ordi perso, à faire dans la VM)
-- [ ] Créer les dossiers des volumes : `/home/cehenrot/data/mariadb` et `/home/cehenrot/data/wordpress`
+- [x] Copier `secrets/` et `srcs/.env` du PC vers la VM (`scp -P 4242`)
+- [x] Domaine : `echo "127.0.0.1 cehenrot.42.fr" | sudo tee -a /etc/hosts`
+- [x] Dossiers `~/data/mariadb` et `~/data/wordpress` → créés par le Makefile
 - [ ] (Optionnel) Redirection de port VirtualBox 443 → 443 pour tester depuis le PC
 - [ ] 💡 Faire un **snapshot** de la VM une fois prête (il n'y en a aucun pour l'instant)
 
