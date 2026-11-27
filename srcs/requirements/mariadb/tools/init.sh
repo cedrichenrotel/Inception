@@ -10,12 +10,10 @@ if [ ! -d "/var/lib/mysql/$MYSQL_DATABASE" ]; then
 
     mariadbd --user=mysql &
 
-    # boucle qui verifie toute les seconde si Mariadb est pret
     until mariadb-admin ping --silent; do
         sleep 1
     done
 
-    # envois script de 4 instructions a mariadb pour executer en sql
     mariadb -e"
         CREATE DATABASE IF NOT EXISTS $MYSQL_DATABASE;
         CREATE USER IF NOT EXISTS '$MYSQL_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
@@ -23,7 +21,6 @@ if [ ! -d "/var/lib/mysql/$MYSQL_DATABASE" ]; then
         ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';
         "
 
-    # arrete mariadb
     mariadb-admin -u root -p"$DB_ROOT_PASSWORD" shutdown
 
 fi
